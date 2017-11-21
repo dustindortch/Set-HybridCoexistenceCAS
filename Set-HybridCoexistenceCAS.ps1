@@ -2,6 +2,7 @@
 param (
     [Parameter(Mandatory)]
     [String]$Namespace,
+    [Parameter(Mandatory)]    [String]$Hostname,
     [Parameter(Mandatory=$False)]
     [ValidateSet("2013","2016")]
     [String]$Version,
@@ -15,26 +16,27 @@ Switch ($Version) {
     Default { $AdmDispVer = "*15.*"}
 }
 
-$AutoD = "https://autodiscover.${Namespace}/Autodiscover/Autodiscover.xml"
-$OWA = "https://${Namespace}/owa"
-$ECP = "https://${Namespace}/ecp"
-$OAB = "https://${Namespace}/oab"
-$EWS = "https://${Namespace}/ews"
-$EAS = "https://${Namespace}/Microsoft-Server-ActiveSync"
-$MAPI = "https://${Namespace}/mapi"
-$CAS = $Namespace
+$FQDN = "${Hostname}.${Namespace}"
+$AUTO = "https://autodiscover.${Namespace}/Autodiscover/Autodiscover.xml"
+$OWA = "https://${FQDN}/owa"
+$ECP = "https://${FQDN}/ecp"
+$OAB = "https://${FQDN}/oab"
+$EWS = "https://${FQDN}/EWS/Exchange.asmx"
+$EAS = "https://${FQDN}/Microsoft-Server-ActiveSync"
+$MAPI = "https://${FQDN}/mapi"
+$CAS = $FQDN
 
 $Servers = Get-ExchangeServer | Where-Object {$_.AdminDisplayVerion -Like $AdmDispVer}
 
 $Servers | ForEach-Object {
-    $Bypass = ($_ | Get-WebServicesVirtualDirectory).InternalUrl
+    $Bypass = "https://$($_.Fqdn)/EWS/Exchange.asmx"
     $_ | Get-OwaVirtualDirectory | Set-OwaVirtualDirectory -ExternalUrl $OWA -InternalUrl $OWA
     $_ | Get-EcpVirtualDirectory | Set-EcpVirtualDirectory -ExternalUrl $ECP -InternalUrl $ECP
     $_ | Get-OabVirtualDirectory | Set-OabVirtualDirectory -ExternalUrl $OAB -InternalUrl $OAB -RequireSSL $True
     $_ | Get-ActiveSyncVirtualDirectory | Set-ActiveSyncVirtualDirectory -ExternalUrl $EAS -InternalUrl $EAS
-    $_ | Get-WebServicesVirtualDirectory | Set-WebServicesVirtualDirectory -ExternalUrl $EWS -InternalUrl $EWS -InternalBypassUrl  $Bypass.OriginalString
-    if($AutoD) {$_ | Get-ClientAccessServer | Set-ClientAccessServer -AutoDiscoverServiceInternalUri $AutoD}
-    $_ | Get-OutlookAnywhere | Set-OutlookAnywhere -InternalHostname $CAS -ExternalHostname $CAS
+    $_ | Get-WebServicesVirtualDirectory | Set-WebServicesVirtualDirectory -ExternalUrl $EWS -InternalUrl $EWS -InternalBypassUrl  $Bypass -Force
+    if($AutoD) {$_ | Get-ClientAccessServer | Set-ClientAccessServer -AutoDiscoverServiceInternalUri $AUTO}
+    $_ | Get-OutlookAnywhere | Set-OutlookAnywhere -InternalHostname $CAS -ExternalHostname $CAS -InternalClientsRequireSsl:$True -InternalClientAuthenticationMethod Ntlm -ExternalClientsRequireSsl:$True -ExternalClientAuthentication Negotiate -IISAuthentication Basic,Ntlm,Negotiate
     $_ | Get-MapiVirtualDirectory | Set-MapiVirtualDirectory -ExternalUrl $MAPI -InternalUrl $MAPI
 }
 
