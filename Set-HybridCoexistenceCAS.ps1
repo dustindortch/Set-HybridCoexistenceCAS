@@ -2,7 +2,8 @@
 param (
     [Parameter(Mandatory)]
     [String]$Namespace,
-    [Parameter(Mandatory)]    [String]$Hostname,
+    [Parameter(Mandatory)]
+    [String]$Hostname,
     [Parameter(Mandatory=$False)]
     [ValidateSet("2013","2016")]
     [String]$Version,
@@ -34,7 +35,7 @@ $Servers | ForEach-Object {
     $_ | Get-EcpVirtualDirectory | Set-EcpVirtualDirectory -ExternalUrl $ECP -InternalUrl $ECP
     $_ | Get-OabVirtualDirectory | Set-OabVirtualDirectory -ExternalUrl $OAB -InternalUrl $OAB -RequireSSL $True
     $_ | Get-ActiveSyncVirtualDirectory | Set-ActiveSyncVirtualDirectory -ExternalUrl $EAS -InternalUrl $EAS
-    $_ | Get-WebServicesVirtualDirectory | Set-WebServicesVirtualDirectory -ExternalUrl $EWS -InternalUrl $EWS -InternalBypassUrl  $Bypass -Force
+    $_ | Get-WebServicesVirtualDirectory | Set-WebServicesVirtualDirectory -ExternalUrl $EWS -InternalUrl $EWS -InternalNLBBypassUrl  $Bypass -Force
     if($AutoD) {$_ | Get-ClientAccessServer | Set-ClientAccessServer -AutoDiscoverServiceInternalUri $AUTO}
     $_ | Get-OutlookAnywhere | Set-OutlookAnywhere -InternalHostname $CAS -ExternalHostname $CAS -InternalClientsRequireSsl:$True -InternalClientAuthenticationMethod Ntlm -ExternalClientsRequireSsl:$True -ExternalClientAuthentication Negotiate -IISAuthentication Basic,Ntlm,Negotiate
     $_ | Get-MapiVirtualDirectory | Set-MapiVirtualDirectory -ExternalUrl $MAPI -InternalUrl $MAPI
