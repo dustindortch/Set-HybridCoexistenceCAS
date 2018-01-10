@@ -1,21 +1,62 @@
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName="AllServers")]
 param (
-    [Parameter(Mandatory)]
+    [Parameter(
+    	Mandatory,
+    	ParameterSetName="ServersByVersion"
+    )]
+    [Parameter(
+    	Mandatory,
+    	ParameterSetName="ServersOnly"
+    )]
+    [Parameter(
+    	Mandatory,
+    	ParameterSetName="AllServers"
+    )]
     [String]$Namespace,
-    [Parameter(Mandatory)]
+
+    [Parameter(
+    	Mandatory,
+    	ParameterSetName="ServersByVersion"
+    )]
+    [Parameter(
+    	Mandatory,
+    	ParameterSetName="ServersOnly"
+    )]
+    [Parameter(
+    	Mandatory,
+    	ParameterSetName="AllServers"
+    )]
     [String]$Hostname,
-    [Parameter(Mandatory=$False)]
+
+    [Parameter(
+    	Mandatory
+    	ParameterSetName="ServersByVersion"
+    )]
     [ValidateSet("2013","2016")]
     [String]$Version,
-    [Parameter(Mandatory=$False)]
-    [Switch]$AutoD
-)
 
-Switch ($Version) {
-    "2013" { $AdmDispVer = "*15.0*" }
-    "2016" { $AdmDispVer = "*15.1*"}
-    Default { $AdmDispVer = "*15.*"}
-}
+	[Parameter(
+		Mandatory,
+		ValueFromPipeline,
+		ParameterSetName="ServersOnly"
+	)]
+	[String[]]$Servers,
+
+    [Parameter(
+    	Mandatory=$False,
+    	ParameterSetName="ServersByVersion"
+    )]
+    [Parameter(
+    	Mandatory=$False,
+    	ParameterSetName="ServersOnly"
+    )]
+    [Parameter(
+    	Mandatory=$False,
+    	ParameterSetName="AllServers"
+    )]
+    [Alias("AutoD")]
+    [Switch]$AutoDiscover
+)
 
 $FQDN = "${Hostname}.${Namespace}"
 $AUTO = "https://autodiscover.${Namespace}/Autodiscover/Autodiscover.xml"
@@ -27,7 +68,18 @@ $EAS = "https://${FQDN}/Microsoft-Server-ActiveSync"
 $MAPI = "https://${FQDN}/mapi"
 $CAS = $FQDN
 
-$Servers = Get-ExchangeServer | Where-Object {$_.AdminDisplayVerion -Like $AdmDispVer}
+If($Server) {
+	$Servers = $Servers | Get-ExchangeServer
+} ElseIf($Version) {
+	Switch ($Version) {
+    	"2013" { $AdmDispVer = "*15.0*" }
+    	"2016" { $AdmDispVer = "*15.1*"}
+    	Default { $AdmDispVer = "*15.*"}
+	}
+	$Servers = Get-ExchangeServer | Where-Object {$_.AdminDisplayVerion -Like $AdmDispVer}
+} Else {
+	$Servers = Get-ExchangeServer
+}
 
 $Servers | ForEach-Object {
     $Bypass = "https://$($_.Fqdn)/EWS/Exchange.asmx"
@@ -36,7 +88,7 @@ $Servers | ForEach-Object {
     $_ | Get-OabVirtualDirectory | Set-OabVirtualDirectory -ExternalUrl $OAB -InternalUrl $OAB -RequireSSL $True
     $_ | Get-ActiveSyncVirtualDirectory | Set-ActiveSyncVirtualDirectory -ExternalUrl $EAS -InternalUrl $EAS
     $_ | Get-WebServicesVirtualDirectory | Set-WebServicesVirtualDirectory -ExternalUrl $EWS -InternalUrl $EWS -InternalNLBBypassUrl  $Bypass -Force
-    if($AutoD) {$_ | Get-ClientAccessServer | Set-ClientAccessServer -AutoDiscoverServiceInternalUri $AUTO}
+    if($AutoDiscover) {$_ | Get-ClientAccessServer | Set-ClientAccessServer -AutoDiscoverServiceInternalUri $AUTO}
     $_ | Get-OutlookAnywhere | Set-OutlookAnywhere -InternalHostname $CAS -ExternalHostname $CAS -InternalClientsRequireSsl:$True -InternalClientAuthenticationMethod Ntlm -ExternalClientsRequireSsl:$True -ExternalClientAuthentication Negotiate -IISAuthentication Basic,Ntlm,Negotiate
     $_ | Get-MapiVirtualDirectory | Set-MapiVirtualDirectory -ExternalUrl $MAPI -InternalUrl $MAPI
 }
