@@ -32,7 +32,7 @@ param (
         Mandatory,
         ParameterSetName='ServersByVersion'
     )]
-    [ValidateSet("2010","2013","2016")]
+    [ValidateSet("2013","2016")]
     [String]$Version,
 
     [Parameter(
@@ -80,7 +80,6 @@ Process{
         $ServerList = $ServerList | Get-ExchangeServer
     } ElseIf ($Version) {
         Switch ($Version) {
-            "2010" { $AdmDispVer = "*14.*" }
             "2013" { $AdmDispVer = "*15.0*" }
             "2016" { $AdmDispVer = "*15.1*"}
         }
